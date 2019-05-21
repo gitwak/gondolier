@@ -1,0 +1,26 @@
+# https://docs.docker.com/compose/compose-file
+# docker-compose up
+# docker-compose stop
+# docker-compose down
+version: '3'
+
+networks:
+  shared-network:
+    driver: bridge
+
+services:
+
+  # This starts a local postgres DB.
+  postgres:
+    container_name: postgres
+    networks:
+      - shared-network
+    image: postgres:11-alpine
+    expose:
+      - "5433"
+    ports:
+      - "5433:5432"
+    environment:
+      - POSTGRES_USER=postgres
+      - POSTGRES_PASS=postgres
+      - POSTGRES_DB=gondolier

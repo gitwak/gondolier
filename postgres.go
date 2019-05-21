@@ -34,6 +34,7 @@ type Postgres struct {
 	Schema      string
 	DropColumns bool
 	Log         bool
+	DryRun      bool
 
 	tx        *sql.Tx
 	createSeq []string
@@ -41,10 +42,35 @@ type Postgres struct {
 	createFK  []string
 	dropFK    []string
 	alterPK   string
+	queries   []string
+}
+
+func (m *Postgres) Migrate(metaModels []MetaModel) {
+	m.runMigrate(metaModels)
+}
+
+func (m *Postgres) Sql(metaModels []MetaModel) []string {
+	// Store the original dry run state
+	dr := m.DryRun
+
+	// Set dryRun to true to prevent queries from executing
+	m.DryRun = true
+
+	// Run the migration for models
+	m.runMigrate(metaModels)
+
+	// Set dryRun back to its original value
+	m.DryRun = dr
+
+	// Get the current queries and reset list
+	q := m.queries
+	m.queries = []string{}
+
+	return q
 }
 
 // Migrate migrates the given data model.
-func (m *Postgres) Migrate(metaModels []MetaModel) {
+func (m *Postgres) runMigrate(metaModels []MetaModel) {
 	defer func() {
 		if r := recover(); r != nil {
 			m.tx.Rollback()
@@ -672,8 +698,13 @@ func (m *Postgres) getUniqueName(modelName, columnName string) string {
 }
 
 func (m *Postgres) exec(query string, tx bool) {
+	m.queries = append(m.queries, query)
 	if m.Log {
 		log.Println(query)
+	}
+
+	if m.DryRun {
+		return
 	}
 
 	if tx {
